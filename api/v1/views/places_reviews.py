@@ -1,81 +1,103 @@
 #!/usr/bin/python3
-"""Contains the places_amenities view for the API."""
-from flask import abort, jsonify, make_response
+"""Contains the places_reviews view for the API."""
+from flask import abort, jsonify, make_response, request
 from api.v1.views import app_views
 from models import storage
-from models import amenity
-from models.amenity import Amenity
 from models.place import Place
-from os import getenv
+from models.review import Review
+from models.user import User
 
 
 @app_views.route(
-    "/places/<place_id>/amenities",
+    "/places/<place_id>/reviews",
     methods=["GET"],
     strict_slashes=False
 )
-def place_amenities(place_id):
-    """Retrieves all Amenities"""
+def review(place_id):
+    """Retrieves all Reviews"""
     obj_place = storage.get(Place, place_id)
     if not obj_place:
         abort(404)
-
-    if getenv("HBNB_TYPE_STORAGE") == "db":
-        obj = [amenity.to_dict() for amenity in obj_place.amenities]
-    else:
-        obj = [storage.get(Amenity, amenity_id).to_dict()
-               for amenity_id in obj_place.amenity_ids]
-    return jsonify(obj)
+    return jsonify([obj.to_dict() for obj in obj_place.reviews])
 
 
 @app_views.route(
-    "/places/<place_id>/amenities/<amenity_id>",
+    "/reviews/<review_id>",
+    methods=["GET"],
+    strict_slashes=False
+)
+def single_review(review_id):
+    """Retrieves Review"""
+    obj = storage.get(Review, review_id)
+    if not obj:
+        abort(404)
+    return jsonify(obj.to_dict())
+
+
+@app_views.route(
+    "/reviews/<review_id>",
     methods=["DELETE"],
     strict_slashes=False
 )
-def del_place_amenity(place_id, amenity_id):
-    """Delete Place Amenity"""
-    obj_place = storage.get(Place, place_id)
-    if not obj_place:
+def del_review(review_id):
+    """Delete Review"""
+    obj = storage.get(Review, review_id)
+    if not obj:
         abort(404)
-
-    obj_amenity = storage.get(Amenity, amenity_id)
-    if not obj_amenity:
-        abort(404)
-
-    for elem in obj_place.amenities:
-        if elem.id == obj_amenity.id:
-            if getenv("HBNB_TYPE_STORAGE") == "db":
-                obj_place.amenities.remove(obj_amenity)
-            else:
-                obj_place.amenity_ids.remove(obj_amenity)
-            storage.save()
-            return make_response(jsonify({}), 200)
+    obj.delete()
+    storage.save()
+    return make_response(jsonify({}), 200)
 
 
 @app_views.route(
-    "/places/<place_id>/amenities/<amenity_id>",
+    "/places/<place_id>/reviews",
     methods=["POST"],
     strict_slashes=False
 )
-def link_place_amenity(place_id, amenity_id):
-    """Link Place Amenity"""
+def push_review(place_id):
+    """Create Review"""
+    if not request.is_json:
+        abort(400, "Not a JSON")
+
     obj_place = storage.get(Place, place_id)
     if not obj_place:
         abort(404)
 
-    obj_amenity = storage.get(Amenity, amenity_id)
-    if not obj_amenity:
+    new_review = request.get_json()
+    if "user_id" not in new_review:
+        abort(400, "Missing user_id")
+    user_id = new_review["user_id"]
+    obj_user = storage.get(User, user_id)
+    if not obj_user:
+        abort(404)
+    if "text" not in new_review:
+        abort(400, "Missing text")
+
+    obj = Review(**new_review)
+    setattr(obj, "place_id", place_id)
+    storage.new(obj)
+    storage.save()
+    return make_response(jsonify(obj.to_dict()), 201)
+
+
+@app_views.route(
+    "/reviews/<review_id>",
+    methods=["PUT"],
+    strict_slashes=False
+)
+def put_review(review_id):
+    """Update Review"""
+    if not request.is_json:
+        abort(400, "Not a JSON")
+
+    obj = storage.get(Review, review_id)
+    if not obj:
         abort(404)
 
-    if getenv("HBNB_TYPE_STORAGE") == "db":
-        if obj_amenity in obj_place.amenities:
-            return make_response(jsonify(obj_amenity.to_dict()), 200)
-        obj_place.amenities.append(obj_amenity)
-    else:
-        if amenity_id in obj_place.amenity_ids:
-            return make_response(jsonify(obj_amenity.to_dict()), 200)
-        obj_place.amenity_ids.append(amenity_id)
+    req = request.get_json()
+    for k, v in req.items():
+        if k not in ["id", "user_id", "place_id", "created_at", "updated_at"]:
+            setattr(obj, k, v)
 
     storage.save()
-    return make_response(jsonify(obj_amenity.to_dict()), 201)
+    return make_response(jsonify(obj.to_dict()), 200)
