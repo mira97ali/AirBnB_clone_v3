@@ -52,13 +52,14 @@ def del_place(place_id):
                  methods=["POST"], strict_slashes=False)
 def post_place(city_id):
     """Create Place"""
+    if not request.is_json:
+        abort(400, "Not a JSON")
+
     obj_city = storage.get(City, city_id)
     if not obj_city:
         abort(404)
 
     new_place = request.get_json()
-    if not new_place:
-        abort(400, "Not a JSON")
     if "user_id" not in new_place:
         abort(400, "Missing user_id")
     user_id = new_place["user_id"]
@@ -96,10 +97,7 @@ def put_place(place_id):
 
 @app_views.route("/places_search", methods=["POST"], strict_slashes=False)
 def places_search():
-    """
-    retrieves all Place objects depending
-    of the JSON in the body of the request
-    """
+    """Search Places"""
     if not request.is_json:
         abort(400, "Not a JSON")
 
