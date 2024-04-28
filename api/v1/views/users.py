@@ -8,14 +8,14 @@ from models.user import User
 
 @app_views.route("/users", methods=["GET"], strict_slashes=False)
 def users():
-    """Retrieves the list of all User objects"""
+    """Retrieves all Users"""
     objs = storage.all(User)
     return jsonify([obj.to_dict() for obj in objs.values()])
 
 
 @app_views.route("/users/<user_id>", methods=["GET"], strict_slashes=False)
 def single_user(user_id):
-    """Retrieves a User object"""
+    """Retrieves User"""
     obj = storage.get(User, user_id)
     if not obj:
         abort(404)
@@ -28,7 +28,7 @@ def single_user(user_id):
     strict_slashes=False
 )
 def del_user(user_id):
-    """Returns an empty dictionary with the status code 200"""
+    """Delete User"""
     obj = storage.get(User, user_id)
     if not obj:
         abort(404)
@@ -39,7 +39,7 @@ def del_user(user_id):
 
 @app_views.route("/users", methods=["POST"], strict_slashes=False)
 def post_user():
-    """Returns the new User with the status code 201"""
+    """Create User"""
     if not request.is_json:
         abort(400, "Not a JSON")
 
@@ -57,7 +57,7 @@ def post_user():
 
 @app_views.route("/users/<user_id>", methods=["PUT"], strict_slashes=False)
 def put_user(user_id):
-    """Returns the User object with the status code 200"""
+    """Update User"""
     if not request.is_json:
         abort(400, "Not a JSON")
 
